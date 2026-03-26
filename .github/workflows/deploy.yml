@@ -1,0 +1,65 @@
+name: Build and Deploy
+
+# When should the robot wake up and do work?
+# Answer: Every time you push code to the main branch
+on:
+  push:
+    branches: [main]
+
+# What should the robot do?
+jobs:
+
+  # JOB 1: Run tests
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Step 1: Get the code
+      - name: Get the code from GitHub
+        uses: actions/checkout@v4
+
+      # Step 2: Install Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Run the test
+      - name: Run tests
+        run: npm test
+
+  # JOB 2: Build the magic box and put it on the shelf
+  build-and-push:
+    # Only do this if the tests passed
+    needs: test
+    runs-on: ubuntu-latest
+
+    # Give the robot permission to use GitHub's shelf (registry)
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # Step 1: Get the code
+      - name: Get the code
+        uses: actions/checkout@v4
+
+      # Step 2: Log into the shelf
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 3: Build the box and put it on the shelf
+      - name: Build and push the box
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest
